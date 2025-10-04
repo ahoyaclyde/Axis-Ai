@@ -1,0 +1,374 @@
+<!doctype html>
+<html><head>
+  <meta charset="utf-8">
+  <title>Forensic Extractor — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .logbox { background: #020202; color: #7CFC00; font-family: monospace; padding: 12px; height: 220px; overflow:auto; white-space: pre-wrap; }
+    .thumb { cursor: pointer; border: 2px solid rgba(255,255,255,0.05); transition: all 0.3s; }
+    .thumb:hover { border-color: rgba(99,102,241,0.5); transform: scale(1.05); }
+    .count-badge { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 999px; font-size: 12px; }
+    .detection-card { background: rgba(31,41,55,0.8); border: 1px solid rgba(75,85,99,0.5); transition: all 0.3s; }
+    .detection-card:hover { background: rgba(31,41,55,1); border-color: rgba(99,102,241,0.5); }
+    .detection-image { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+    .confidence-bar { height: 4px; border-radius: 2px; transition: width 0.5s ease; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+  <div class="max-w-6xl mx-auto p-6 grid grid-cols-12 gap-4">
+    <div class="col-span-4 bg-gray-800 p-4 rounded">
+      <h2 class="font-semibold mb-2">Upload</h2>
+      <input id="fileinput" type="file" class="w-full p-2 bg-gray-700 rounded" />
+      <button id="uploadBtn" class="mt-2 bg-indigo-600 px-3 py-2 rounded">Upload</button>
+      
+      <h3 class="mt-4 font-semibold">Start detection (after upload)</h3>
+      <label class="text-xs">Upload ID</label>
+      <input id="upload_id" class="w-full p-2 bg-gray-700 rounded" />
+      <label class="text-xs mt-2">Filter</label>
+      <input id="filter" class="w-full p-2 bg-gray-700 rounded" value="all" />
+      <label class="text-xs mt-2">Confidence</label>
+      <input id="confidence" class="w-full p-2 bg-gray-700 rounded" value="0.5" />
+      <label class="text-xs mt-2">Frame skip</label>
+      <input id="frame_skip" class="w-full p-2 bg-gray-700 rounded" value="5" />
+      <button id="startBtn" class="mt-3 bg-green-600 px-3 py-2 rounded">Start</button>
+      
+      <h3 class="mt-4 font-semibold">Start URL detection</h3>
+      <label class="text-xs">Video URL (YouTube, Instagram, TikTok, etc.)</label>
+      <input id="video_url" class="w-full p-2 bg-gray-700 rounded" placeholder="https://youtube.com/watch?v=..." />
+      <label class="text-xs mt-2">Filter</label>
+      <input id="url_filter" class="w-full p-2 bg-gray-700 rounded" value="all" />
+      <label class="text-xs mt-2">Confidence</label>
+      <input id="url_confidence" class="w-full p-2 bg-gray-700 rounded" value="0.5" />
+      <label class="text-xs mt-2">Frame skip</label>
+      <input id="url_frame_skip" class="w-full p-2 bg-gray-700 rounded" value="10" />
+      <button id="startUrlBtn" class="mt-3 bg-purple-600 px-3 py-2 rounded">Start URL Job</button>
+      
+      <h3 class="mt-4 font-semibold">Jobs</h3>
+      <div id="jobsList" class="text-sm mt-2"></div>
+    </div>
+    
+    <div class="col-span-8 bg-gray-800 p-4 rounded">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-semibold">Events (real-time)</h2>
+        <div class="flex space-x-2">
+          <button id="viewDetections" class="bg-purple-600 px-3 py-1 rounded text-sm">Gallery View</button>
+          <button id="clearDetections" class="bg-red-600 px-3 py-1 rounded text-sm">Clear</button>
+        </div>
+      </div>
+      <pre id="events" class="logbox mt-2"></pre>
+      
+      <div class="flex justify-between items-center mt-4 mb-2">
+        <h2 class="font-semibold">Live Detections</h2>
+        <div id="detectionStats" class="text-sm text-gray-400"></div>
+      </div>
+      <div id="detections" class="mt-2 space-y-2 max-h-96 overflow-y-auto"></div>
+      
+      <div class="mt-4">
+        <button id="refreshJobs" class="bg-indigo-600 px-3 py-1 rounded">Refresh Jobs</button>
+        <button id="cleanupExpired" class="bg-red-600 px-3 py-1 rounded ml-2">Cleanup Expired</button>
+      </div>
+    </div>
+  </div>
+<script>
+let currentJobId = null;
+let ws = null;
+let detectionCount = 0;
+let classCounts = {};
+
+// Clear detections display
+document.getElementById('clearDetections').addEventListener('click', () => {
+  document.getElementById('detections').innerHTML = '';
+  detectionCount = 0;
+  classCounts = {};
+  updateDetectionStats();
+});
+
+// View gallery for current job
+document.getElementById('viewDetections').addEventListener('click', () => {
+  if (currentJobId) {
+    window.open(`/jobs/${currentJobId}/gallery`, '_blank');
+  } else {
+    alert('No active job selected');
+  }
+});
+
+function updateDetectionStats() {
+  const statsDiv = document.getElementById('detectionStats');
+  if (detectionCount === 0) {
+    statsDiv.textContent = 'No detections yet';
+    return;
+  }
+  
+  const classInfo = Object.entries(classCounts)
+    .map(([cls, count]) => `${cls}: ${count}`)
+    .join(', ');
+  statsDiv.textContent = `Total: ${detectionCount} | ${classInfo}`;
+}
+
+function addDetectionToUI(detection) {
+  const detectionsDiv = document.getElementById('detections');
+  detectionCount++;
+  
+  // Update class counts
+  classCounts[detection.class_name] = (classCounts[detection.class_name] || 0) + 1;
+  
+  const detectionCard = document.createElement('div');
+  detectionCard.className = 'detection-card p-3 rounded-lg flex items-center space-x-3';
+  
+  const confidencePercent = Math.round(detection.confidence * 100);
+  const confidenceColor = confidencePercent >= 80 ? 'bg-green-500' : 
+                         confidencePercent >= 60 ? 'bg-yellow-500' : 'bg-red-500';
+  
+  detectionCard.innerHTML = `
+    <div class="flex-shrink-0">
+      ${detection.image_base64 ? 
+        `<img src="data:image/png;base64,${detection.image_base64}" class="detection-image" alt="${detection.class_name}">` :
+        `<div class="detection-image bg-gray-700 flex items-center justify-center text-xs text-gray-400">No Image</div>`
+      }
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <span class="font-medium text-white">${detection.class_name}</span>
+        <span class="text-sm text-gray-400">Frame ${detection.frame_number}</span>
+      </div>
+      <div class="text-sm text-gray-400">
+        Confidence: ${confidencePercent}% | Time: ${detection.timestamp}s
+      </div>
+      <div class="mt-1 bg-gray-700 rounded-full h-1">
+        <div class="confidence-bar ${confidenceColor}" style="width: ${confidencePercent}%"></div>
+      </div>
+    </div>
+    <div class="flex-shrink-0">
+      <button onclick="openDetectionDetails(${detection.detection_id})" class="text-xs bg-indigo-600 px-2 py-1 rounded hover:bg-indigo-700">
+        Details
+      </button>
+    </div>
+  `;
+  
+  // Add to top of list
+  detectionsDiv.insertBefore(detectionCard, detectionsDiv.firstChild);
+  
+  // Keep only last 50 detections in UI for performance
+  while (detectionsDiv.children.length > 50) {
+    detectionsDiv.removeChild(detectionsDiv.lastChild);
+  }
+  
+  updateDetectionStats();
+}
+
+function openDetectionDetails(detectionId) {
+  // Open detection image in new tab
+  window.open(`/detection_image/${detectionId}`, '_blank');
+}
+
+// Upload functionality
+document.getElementById('uploadBtn').addEventListener('click', async () => {
+  const fileInput = document.getElementById('fileinput');
+  const file = fileInput.files[0];
+  if (!file) {
+    alert('Please select a file');
+    return;
+  }
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  try {
+    const response = await fetch('{{url_for('upload_frame')}}', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await response.json();
+    if (response.ok) {
+      document.getElementById('upload_id').value = result.upload_id;
+      alert(`Upload successful! ID: ${result.upload_id}`);
+    } else {
+      alert(`Upload failed: ${result.error}`);
+    }
+  } catch (error) {
+    alert(`Upload error: ${error.message}`);
+  }
+});
+
+// Start URL job functionality
+document.getElementById('startUrlBtn').addEventListener('click', async () => {
+  const videoUrl = document.getElementById('video_url').value.trim();
+  const filter = document.getElementById('url_filter').value;
+  const confidence = parseFloat(document.getElementById('url_confidence').value);
+  const frameSkip = parseInt(document.getElementById('url_frame_skip').value);
+  
+  if (!videoUrl) {
+    alert('Please enter a video URL');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/start_url_job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: videoUrl,
+        object_filter: filter,
+        confidence: confidence,
+        frame_skip: frameSkip
+      })
+    });
+    const result = await response.json();
+    if (response.ok) {
+      currentJobId = result.job_id;
+      alert(`URL Job started! ID: ${result.job_id}\\nResults will expire in ${result.expiry_hours} hours`);
+      connectWebSocket(result.job_id);
+      refreshJobs();
+    } else {
+      alert(`URL Job start failed: ${result.error}`);
+    }
+  } catch (error) {
+    alert(`URL Job start error: ${error.message}`);
+  }
+});
+
+// Start job functionality
+document.getElementById('startBtn').addEventListener('click', async () => {
+  const uploadId = document.getElementById('upload_id').value;
+  const filter = document.getElementById('filter').value;
+  const confidence = parseFloat(document.getElementById('confidence').value);
+  const frameSkip = parseInt(document.getElementById('frame_skip').value);
+  
+  if (!uploadId) {
+    alert('Please enter upload ID');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/start_job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        upload_id: parseInt(uploadId),
+        object_filter: filter,
+        confidence: confidence,
+        frame_skip: frameSkip
+      })
+    });
+    const result = await response.json();
+    if (response.ok) {
+      currentJobId = result.job_id;
+      alert(`Job started! ID: ${result.job_id}`);
+      connectWebSocket(result.job_id);
+      refreshJobs();
+    } else {
+      alert(`Job start failed: ${result.error}`);
+    }
+  } catch (error) {
+    alert(`Job start error: ${error.message}`);
+  }
+});
+
+// WebSocket connection
+function connectWebSocket(jobId) {
+  if (ws) {
+    ws.close();
+  }
+  
+  currentJobId = jobId;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${protocol}//${window.location.host}/ws/jobs/${jobId}`);
+  
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    const eventsDiv = document.getElementById('events');
+    
+    if (data.type === 'log') {
+      eventsDiv.textContent += `[${data.level.toUpperCase()}] ${data.message}\\n`;
+      eventsDiv.scrollTop = eventsDiv.scrollHeight;
+    } else if (data.type === 'detection') {
+      // Add to log
+      eventsDiv.textContent += `[DETECTION] Frame ${data.frame_number}: ${data.class_name} (${data.confidence.toFixed(2)})\\n`;
+      eventsDiv.scrollTop = eventsDiv.scrollHeight;
+      
+      // Add to visual detections display
+      addDetectionToUI(data);
+    } else if (data.type === 'progress') {
+      eventsDiv.textContent += `[PROGRESS] Frame ${data.frame}: ${data.progress}%\\n`;
+      eventsDiv.scrollTop = eventsDiv.scrollHeight;
+    }
+  };
+  
+  ws.onclose = () => {
+    console.log('WebSocket connection closed');
+  };
+  
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error);
+  };
+}
+
+// Refresh jobs
+async function refreshJobs() {
+  try {
+    const response = await fetch('/jobs');
+    const result = await response.json();
+    const jobsList = document.getElementById('jobsList');
+    
+    jobsList.innerHTML = result.jobs.map(job => {
+      let statusColor = job.status === 'completed' ? 'bg-green-700' : 
+                       job.status === 'running' ? 'bg-blue-700' :
+                       job.status === 'failed' ? 'bg-red-700' : 'bg-gray-700';
+      
+      let expiryInfo = '';
+      if (job.source_type === 'url' && job.expires_in_hours !== undefined) {
+        if (job.expires_in_hours > 0) {
+          expiryInfo = `<div class="text-xs text-yellow-400">Expires in ${job.expires_in_hours}h</div>`;
+        } else {
+          expiryInfo = `<div class="text-xs text-red-400">EXPIRED</div>`;
+        }
+      }
+      
+      return `<div class="p-2 mb-2 ${statusColor} rounded">
+        <div>Job ${job.id} - ${job.status}</div>
+        <div class="text-xs text-gray-300">${job.source_display}</div>
+        ${expiryInfo}
+        <button onclick="connectWebSocket(${job.id})" class="text-xs bg-blue-600 px-2 py-1 rounded mt-1">Connect</button>
+        <button onclick="openGallery(${job.id})" class="text-xs bg-purple-600 px-2 py-1 rounded mt-1 ml-1">Gallery</button>
+        ${job.source_type === 'url' ? '<span class="text-xs bg-purple-600 px-1 rounded ml-1">URL</span>' : '<span class="text-xs bg-green-600 px-1 rounded ml-1">FILE</span>'}
+      </div>`;
+    }).join('');
+  } catch (error) {
+    console.error('Failed to refresh jobs:', error);
+  }
+}
+
+function openGallery(jobId) {
+  window.open(`/jobs/${jobId}/gallery`, '_blank');
+}
+
+// Refresh jobs
+document.getElementById('refreshJobs').addEventListener('click', refreshJobs);
+
+// Cleanup expired jobs
+document.getElementById('cleanupExpired').addEventListener('click', async () => {
+  if (!confirm('Are you sure you want to cleanup expired URL jobs? This will permanently delete their results.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/cleanup_expired', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const result = await response.json();
+    if (response.ok) {
+      alert(`Cleanup completed: ${result.message}`);
+      refreshJobs();
+    } else {
+      alert(`Cleanup failed: ${result.error}`);
+    }
+  } catch (error) {
+    alert(`Cleanup error: ${error.message}`);
+  }
+});
+
+// Initial load
+refreshJobs();
+</script>
+</body></html>
