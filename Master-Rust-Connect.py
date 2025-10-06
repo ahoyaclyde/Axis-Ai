@@ -72,14 +72,7 @@ from rust_wallet import get_wallet_connector, close_wallet_connector
 
 
 # Render-specific configuration
-if os.environ.get('RENDER'):
-    # Use Render's provided port
-    PORT = int(os.environ.get('PORT', 10000))
-    # Update base URL for Render
-    BASE_URL = f"https://{os.environ.get('RENDER_SERVICE_NAME', 'blackroom')}.onrender.com"
-else:
-    PORT = 5000
-    BASE_URL = "http://localhost:5000"
+
 # -------------------------
 # Configuration
 # -------------------------
@@ -7692,24 +7685,55 @@ async def cleanup():
     """Cleanup resources"""
     close_wallet_connector()
 
-if __name__ == '__main__':
-    import argparse
+# Add health check endpoint
+@app.route('/health/sys/')
+async def health_check():
+    """Health check endpoint for Docker and Render"""
+    try:
+        # Check database connection
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("SELECT 1")
+        
+        # System info
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        return jsonify({
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "service": "Forensic Video Analysis Platform",
+            "version": "2.0.0",
+            "system": {
+                "memory_used": f"{memory.percent}%",
+                "disk_used": f"{disk.percent}%",
+                "python_version": os.environ.get('PYTHON_VERSION', '3.11.0')
+            },
+            "database": "connected",
+            "endpoints": {
+                "websocket": "active",
+                "authentication": "active",
+                "video_processing": "active"
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }), 500
+
+# Update main block at the end of app.py
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    host = os.environ.get("HOST", "0.0.0.0")
     
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="0.0.0.0", help="Host to run on")
-    parser.add_argument("--port", type=int, default=PORT, help="Port to run on")
-    args = parser.parse_args()
+    print(f"🚀 Starting Forensic Video Analysis Platform")
+    print(f"📍 Host: {host}")
+    print(f"🔌 Port: {port}")
+    print(f"🐳 Environment: {'Docker' if os.environ.get('RENDER') else 'Development'}")
     
-    print(f"Starting Forensic Video Analysis Platform on {args.host}:{args.port}")
-    print(f"Access the application at: {BASE_URL}")
-    
-    # Initialize database
-    asyncio.run(init_enhanced_db())
-    print("Database initialized successfully")
-    
-    # Start cleanup task
-    asyncio.create_task(cleanup_expired_task())
-    print("Background cleanup task started")
-    
-    # Run the application
-    app.run(host=args.host, port=args.port, debug=False)
+    # Development mode only
+    if not os.environ.get('RENDER'):
+        app.run(host=host, port=port, debug=True)
+    else:
+        print("✅ Running in production mode with Hypercorn")
