@@ -11,7 +11,7 @@ aiosqlite==0.19.0
 aiofiles==23.2.1
 
 # Image Processing - Use specific pre-compiled versions
-pillow==9.5.0
+
 opencv-python-headless==4.8.1.78
 numpy==1.24.3
 
