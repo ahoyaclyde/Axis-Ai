@@ -1,24 +1,13 @@
 services:
   - type: web
     name: forensic-video-analysis
-    env: python
     plan: free
-   buildCommand: |
-  apt-get update && apt-get install -y \
-    ffmpeg \
-    libsm6 \
-    libxext6 \
-    libgl1-mesa-glx \
-    libjpeg-dev \
-    zlib1g-dev
-  pip install --upgrade pip
-  pip install --no-cache-dir --no-build-isolation pillow==9.5.0
-  pip install --no-cache-dir -r requirements.txt
-    startCommand: python Master-Rust-Connector.py
+    dockerfilePath: Dockerfile
+    dockerContext: .
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: JWT_SECRET
         generateValue: true
       - key: RENDER
         value: true
+    healthCheckPath: /health
+    autoDeploy: true
