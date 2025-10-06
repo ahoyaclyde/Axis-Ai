@@ -70,6 +70,16 @@ import secrets
 # Import Rust wallet connector
 from rust_wallet import get_wallet_connector, close_wallet_connector
 
+
+# Render-specific configuration
+if os.environ.get('RENDER'):
+    # Use Render's provided port
+    PORT = int(os.environ.get('PORT', 10000))
+    # Update base URL for Render
+    BASE_URL = f"https://{os.environ.get('RENDER_SERVICE_NAME', 'blackroom')}.onrender.com"
+else:
+    PORT = 5000
+    BASE_URL = "http://localhost:5000"
 # -------------------------
 # Configuration
 # -------------------------
@@ -7683,12 +7693,23 @@ async def cleanup():
     close_wallet_connector()
 
 if __name__ == '__main__':
-    import hypercorn.asyncio
-    from hypercorn.config import Config
-    config = Config()
-    config.bind = ["0.0.0.0:8000"]
+    import argparse
     
-    async def run_app():
-        await hypercorn.asyncio.serve(app, config)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="0.0.0.0", help="Host to run on")
+    parser.add_argument("--port", type=int, default=PORT, help="Port to run on")
+    args = parser.parse_args()
     
-    asyncio.run(run_app())
+    print(f"Starting Forensic Video Analysis Platform on {args.host}:{args.port}")
+    print(f"Access the application at: {BASE_URL}")
+    
+    # Initialize database
+    asyncio.run(init_enhanced_db())
+    print("Database initialized successfully")
+    
+    # Start cleanup task
+    asyncio.create_task(cleanup_expired_task())
+    print("Background cleanup task started")
+    
+    # Run the application
+    app.run(host=args.host, port=args.port, debug=False)
