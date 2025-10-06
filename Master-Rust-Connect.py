@@ -181,19 +181,27 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(DETECTIONS_DIR, exist_ok=True)
 
-app = Quart(__name__)
+
+# WITH THIS:
+class PreConfiguredQuart(Quart):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set critical configuration BEFORE any internal setup
+        self.config.update({
+            "PROVIDE_AUTOMATIC_OPTIONS": True,
+            "SECRET_KEY": os.environ.get('JWT_SECRET', JWT_SECRET_KEY),
+            "MAX_CONTENT_LENGTH": MAX_CONTENT_LENGTH,
+        })
+
+# Use the pre-configured class
+app = PreConfiguredQuart(__name__)
+
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
 app.secret_key = JWT_SECRET_KEY
 # In your Master-Rust-Connect.py, around line 184 where you create the app:
-app = Quart(__name__)
 
 # ⚠️ CRITICAL: Add these configurations IMMEDIATELY after creating the app
-app.config.update({
-    "PROVIDE_AUTOMATIC_OPTIONS": True,
-    "SECRET_KEY": os.environ.get('JWT_SECRET', 'your-super-secret-key-change-in-production'),
-    "MAX_CONTENT_LENGTH": 2 * 1024 * 1024 * 1024,  # 2 GB
-    "SEND_FILE_MAX_AGE_DEFAULT": 0,
-})
+
 
 # Continue with your existing configuration...
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
