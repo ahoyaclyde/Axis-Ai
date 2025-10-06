@@ -1,13 +1,13 @@
-# Core web framework
+# Web Framework
 quart==0.18.4
 hypercorn==0.16.0
 
-# Database
+# Database & Files
 aiosqlite==0.19.0
 aiofiles==23.2.1
 
-# Image processing (compatible versions)
-pillow==9.5.0
+# Image Processing
+pillow==10.0.0
 opencv-python-headless==4.8.1.78
 numpy==1.24.3
 
@@ -16,20 +16,21 @@ bcrypt==4.0.1
 pyjwt==2.8.0
 cryptography==41.0.7
 
-# Data science
+# Data Science
 scipy==1.11.4
 scikit-learn==1.3.2
 matplotlib==3.7.2
 seaborn==0.13.0
+filterpy==1.4.5
 
 # AI/ML
 torch==2.1.0
 torchvision==0.16.0
 ultralytics==8.0.186
-filterpy==1.4.5
 
-# Video processing
+# Video & Utilities
 yt-dlp==2023.11.16
-
-# System monitoring
 psutil==5.9.6
+
+# HTTP Client (for health checks)
+requests==2.31.0
