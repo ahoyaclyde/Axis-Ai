@@ -17,8 +17,22 @@ pip install quart aiosqlite aiofiles pillow opencv-python psutil bcrypt pyjwt cr
 Run:
   python app.py
 """
-
+# ADD THIS AT THE VERY TOP OF YOUR FILE (before any imports)
 import os
+import sys
+
+# Monkey-patch Flask Config to always include PROVIDE_AUTOMATIC_OPTIONS
+import flask.config
+
+original_config_getitem = flask.config.Config.__getitem__
+
+def patched_config_getitem(self, key):
+    if key == "PROVIDE_AUTOMATIC_OPTIONS":
+        return True
+    return original_config_getitem(self, key)
+
+flask.config.Config.__getitem__ = patched_config_getitem
+
 import io
 import json
 import zipfile
