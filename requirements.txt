@@ -2,7 +2,7 @@ quart==0.18.4
 hypercorn==0.16.0
 aiosqlite==0.19.0
 aiofiles==23.2.1
-pillow==9.5.0
+pillow
 opencv-python-headless==4.8.1.78
 numpy==1.24.3
 bcrypt==4.0.1
