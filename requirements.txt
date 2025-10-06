@@ -14,7 +14,7 @@ matplotlib
 seaborn
 torch
 torchvision
-ultralytics==8.0.18
-filterpy==1.4.5
+ultralytics
+filterpy
 yt-dlp
-psutil==5.9.6
+psutil
