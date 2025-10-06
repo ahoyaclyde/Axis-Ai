@@ -187,13 +187,17 @@ app.secret_key = JWT_SECRET_KEY
 # In your Master-Rust-Connect.py, around line 184 where you create the app:
 app = Quart(__name__)
 
-# ADD THESE CONFIGURATIONS RIGHT AFTER:
-app.config["PROVIDE_AUTOMATIC_OPTIONS"] = True
-app.config["SECRET_KEY"] = os.environ.get('JWT_SECRET', 'your-super-secret-key-change-in-production')
+# ⚠️ CRITICAL: Add these configurations IMMEDIATELY after creating the app
+app.config.update({
+    "PROVIDE_AUTOMATIC_OPTIONS": True,
+    "SECRET_KEY": os.environ.get('JWT_SECRET', 'your-super-secret-key-change-in-production'),
+    "MAX_CONTENT_LENGTH": 2 * 1024 * 1024 * 1024,  # 2 GB
+    "SEND_FILE_MAX_AGE_DEFAULT": 0,
+})
 
-# Add other required Flask configurations
-app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024  # 2 GB
-app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+# Continue with your existing configuration...
+app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
+app.secret_key = JWT_SECRET_KEY
 
 # Continue with your existing code...
 # -------------------------
