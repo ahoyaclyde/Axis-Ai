@@ -6,9 +6,9 @@ services:
     region: ohio
     branch: main
     
-    # OPTIMIZED BUILD COMMAND
+    # BUILD COMMAND - Install compatible versions first
     buildCommand: |
-      echo "🚀 Starting bulletproof build process..."
+      echo "🚀 Starting build with compatible versions..."
       apt-get update
       apt-get install -y \
         ffmpeg \
@@ -21,19 +21,19 @@ services:
       apt-get clean
       rm -rf /var/lib/apt/lists/*
       
-      echo "📦 Installing Python dependencies..."
-      pip install --upgrade pip setuptools wheel
+      echo "📦 Installing compatible Flask/Quart versions..."
+      pip install --upgrade pip
       
-      # Install Pillow first with specific flags
-      pip install --no-cache-dir --timeout=300 --only-binary=all pillow==9.5.0
+      # Install the core compatible versions first
+      pip install --no-cache-dir flask==2.3.3 werkzeug==2.3.7 quart==0.18.4
       
-      # Install rest of requirements
+      # Then install the rest
       pip install --no-cache-dir --timeout=300 -r requirements.txt
       
-      echo "✅ Build completed successfully!"
+      echo "✅ Build completed successfully"
     
     # START COMMAND
-    startCommand: hypercorn asgi:application --bind 0.0.0.0:$PORT --workers 1
+    startCommand: hypercorn asgi:application --bind 0.0.0.0:$PORT --workers 1 --access-logfile -
     
     # ENVIRONMENT VARIABLES
     envVars:
