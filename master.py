@@ -7682,15 +7682,7 @@ async def internal_error(error):
     """), 500
 
 # Add health check endpoint
-@app.route('/health')
-@auth_required
-async def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'version': '2.0.0'
-    })
+
 
 # -------------------------
 # Application Startup and Cleanup
