@@ -1,27 +1,22 @@
 FROM python:3.11-slim
 
-# Install system dependencies including Pillow build dependencies
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies in a single layer
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsm6 \
     libxext6 \
     libgl1-mesa-glx \
     libjpeg-dev \
-    libtiff5-dev \
-    libjasper-dev \
     libpng-dev \
-    libwebp-dev \
-    libopenexr-dev \
-    libgstreamer1.0-dev \
-    libavcodec-dev \
-    libavformat-dev \
-    libswscale-dev \
-    libgtk-3-dev \
-    libv4l-dev \
-    gcc \
-    g++ \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
+    zlib1g-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Set working directory
 WORKDIR /app
@@ -30,6 +25,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
@@ -41,5 +37,9 @@ RUN mkdir -p uploads outputs detections object_snapshots
 # Expose port
 EXPOSE 5000
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
 # Start application
-CMD ["hypercorn", "asgi:application", "--bind", "0.0.0.0:5000"]
+CMD ["hypercorn", "asgi:application", "--bind", "0.0.0.0:5000", "--workers", "1"]
