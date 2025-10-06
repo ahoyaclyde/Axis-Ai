@@ -1,0 +1,28 @@
+app = "forensic-video-analysis"
+primary_region = "iad"  # Virginia, US - choose closest to you
+
+[build]
+  builder = "heroku/buildpacks:20"
+
+[env]
+  PORT = "8080"
+  JWT_SECRET = "your-super-secret-key-change-in-production-here"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "15s"
+    method = "GET"
+    path = "/"
+    timeout = "10s"
+    restart_limit = 0
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
