@@ -7722,18 +7722,14 @@ async def health_check():
             "timestamp": datetime.utcnow().isoformat()
         }), 500
 
-# Update main block at the end of app.py
+# Add this to ensure the app binds to the correct port
 if __name__ == "__main__":
+    import os
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
     
-    print(f"🚀 Starting Forensic Video Analysis Platform")
-    print(f"📍 Host: {host}")
-    print(f"🔌 Port: {port}")
-    print(f"🐳 Environment: {'Docker' if os.environ.get('RENDER') else 'Development'}")
+    print(f"🚀 Starting application on {host}:{port}")
+    print(f"🔧 Environment: {'Production' if os.environ.get('RENDER') else 'Development'}")
     
-    # Development mode only
-    if not os.environ.get('RENDER'):
-        app.run(host=host, port=port, debug=True)
-    else:
-        print("✅ Running in production mode with Hypercorn")
+    # Development mode
+    app.run(host=host, port=port, debug=not os.environ.get('RENDER'))
