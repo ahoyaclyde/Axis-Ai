@@ -13,7 +13,7 @@ print("🚀 Starting Quart application...")
 
 try:
     # Import your application
-    from Master_Rust_Connect import app, init_enhanced_db, cleanup_expired_task
+    from Master-Rust-Connect import app, init_enhanced_db, cleanup_expired_task
     
     async def setup():
         """Setup the application"""
