@@ -8,7 +8,7 @@ services:
     
     # OPTIMIZED BUILD COMMAND
     buildCommand: |
-      echo "🚀 Starting optimized build process..."
+      echo "🚀 Starting bulletproof build process..."
       apt-get update
       apt-get install -y \
         ffmpeg \
@@ -20,9 +20,17 @@ services:
         zlib1g-dev
       apt-get clean
       rm -rf /var/lib/apt/lists/*
-      pip install --upgrade pip
+      
+      echo "📦 Installing Python dependencies..."
+      pip install --upgrade pip setuptools wheel
+      
+      # Install Pillow first with specific flags
+      pip install --no-cache-dir --timeout=300 --only-binary=all pillow==9.5.0
+      
+      # Install rest of requirements
       pip install --no-cache-dir --timeout=300 -r requirements.txt
-      echo "✅ Build completed successfully"
+      
+      echo "✅ Build completed successfully!"
     
     # START COMMAND
     startCommand: hypercorn asgi:application --bind 0.0.0.0:$PORT --workers 1
