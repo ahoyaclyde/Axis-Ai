@@ -1,4 +1,4 @@
-# Web Framework
+# Core Framework
 quart==0.18.4
 hypercorn==0.16.0
 
@@ -6,8 +6,8 @@ hypercorn==0.16.0
 aiosqlite==0.19.0
 aiofiles==23.2.1
 
-# Image Processing
-pillow==8.4.0
+# Image Processing - Use versions known to have pre-built wheels
+pillow==9.5.0 ; sys_platform != "win32"
 opencv-python-headless==4.8.1.78
 numpy==1.24.3
 
@@ -24,13 +24,13 @@ seaborn==0.13.0
 filterpy==1.4.5
 
 # AI/ML
-torch==2.1.0
-torchvision==0.16.0
+torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+torchvision==0.16.0 --index-url https://download.pytorch.org/whl/cpu
 ultralytics==8.0.186
 
 # Video & Utilities
 yt-dlp==2023.11.16
 psutil==5.9.6
 
-# HTTP Client (for health checks)
+# HTTP Client
 requests==2.31.0
