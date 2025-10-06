@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: forensic-video-analysis
+    env: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      apt-get update && apt-get install -y ffmpeg libsm6 libxext6
+    startCommand: python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RENDER
+        value: true
