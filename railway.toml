@@ -3,7 +3,7 @@ build.command = "pip install -r requirements.txt"
 start.command = "python Master-Rust-Connect.py --host 0.0.0.0 --port $PORT"
 
 [build]
-builder = "nixpacks"
+builder = "railpack"
 
 [variables]
 JWT_SECRET = "your-super-secret-key-change-in-production"
