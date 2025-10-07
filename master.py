@@ -7753,8 +7753,7 @@ async def health_check():
 
 # Add this to ensure the app binds to the correct port
 # Add this to the END of your master.py file
-if __name__ == "__main__":
+if __name__ == '__main__':
     import os
-    port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Starting main app on 0.0.0.0:{port}")
-    app.run(host="0.0.0.0", port=port, debug=False)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
